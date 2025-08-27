@@ -2,6 +2,8 @@ import streamlit as st
 import random
 import time
 import streamlit.components.v1 as components
+import threading
+from datetime import datetime
 
 # Configure page
 st.set_page_config(
@@ -115,28 +117,20 @@ def scramble_word(word):
     scrambled = ''.join(letters)
     return scrambled if scrambled != word else scramble_word(word)
 
-# BULLETPROOF INITIALIZATION - Always call this first
 def init_session_state():
-    """Initialize all session state variables - BULLETPROOF"""
-    # Clear any existing state to avoid conflicts
+    """Initialize all session state variables"""
     if 'initialized' not in st.session_state:
-        # Game flow state
-        st.session_state.screen = 'welcome'  # welcome, playing, interstitial, complete
-
-        # Game data
+        st.session_state.screen = 'welcome'
         st.session_state.current_round = 1
         st.session_state.score = 0
         st.session_state.current_word = ''
         st.session_state.scrambled_word = ''
         st.session_state.round_start_time = None
         st.session_state.hint_used = False
-
-        # UI state
         st.session_state.feedback_message = ''
         st.session_state.feedback_type = 'info'
         st.session_state.awaiting_next_round = False
-
-        # Mark as initialized
+        st.session_state.last_update = time.time()  # For timer updates
         st.session_state.initialized = True
 
 def start_new_round():
@@ -150,6 +144,7 @@ def start_new_round():
     st.session_state.feedback_type = 'info'
     st.session_state.awaiting_next_round = False
     st.session_state.screen = 'playing'
+    st.session_state.last_update = time.time()
 
 def calculate_score(time_taken):
     """Calculate score based on correctness and time"""
@@ -163,7 +158,6 @@ def process_guess(user_guess):
     current_word = st.session_state.current_word
 
     if user_guess == current_word:
-        # Correct guess
         elapsed_time = time.time() - st.session_state.round_start_time
         round_score = calculate_score(elapsed_time)
 
@@ -172,7 +166,6 @@ def process_guess(user_guess):
         st.session_state.feedback_type = 'success'
         st.session_state.awaiting_next_round = True
     else:
-        # Incorrect guess
         st.session_state.feedback_message = f"❌ '{user_guess}' is not correct. Try again!"
         st.session_state.feedback_type = 'error'
         st.session_state.awaiting_next_round = False
@@ -214,9 +207,91 @@ def get_performance_message(score):
     else:
         return "💪 Nice try! You'll do better next time!"
 
+def create_auto_refresh_timer():
+    """Create JavaScript-based auto-refreshing timer"""
+    timer_html = f"""
+    <div id="timer-container" style="text-align: center; margin: 10px 0;">
+        <div id="countdown-timer" style="font-size: 1.5em; font-weight: bold; color: #e74c3c; 
+             background: #fff5f5; padding: 10px; border-radius: 8px; border: 2px solid #e74c3c;">
+            ⏰ <span id="timer-display">60</span>s
+        </div>
+        <div id="progress-container" style="margin-top: 10px;">
+            <div style="background: #ecf0f1; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div id="progress-bar" style="background: linear-gradient(90deg, #27ae60, #f1c40f, #e74c3c); 
+                     height: 100%; width: 100%; transition: width 1s linear;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let startTime = {st.session_state.round_start_time if st.session_state.round_start_time else time.time()};
+    let roundDuration = {GAME_CONFIG['time_per_round']};
+
+    function updateTimer() {{
+        let currentTime = Date.now() / 1000;
+        let elapsed = currentTime - startTime;
+        let timeLeft = Math.max(0, roundDuration - elapsed);
+
+        // Update timer display
+        document.getElementById('timer-display').textContent = Math.ceil(timeLeft);
+
+        // Update progress bar
+        let progress = (timeLeft / roundDuration) * 100;
+        document.getElementById('progress-bar').style.width = progress + '%';
+
+        // Change color based on time remaining
+        let timerElement = document.getElementById('countdown-timer');
+        if (timeLeft <= 10) {{
+            timerElement.style.color = '#e74c3c';
+            timerElement.style.background = '#ffebee';
+            timerElement.style.borderColor = '#e74c3c';
+            if (timeLeft <= 5) {{
+                timerElement.style.animation = 'pulse 1s infinite';
+            }}
+        }} else if (timeLeft <= 30) {{
+            timerElement.style.color = '#f39c12';
+            timerElement.style.background = '#fef9e7';
+            timerElement.style.borderColor = '#f39c12';
+        }} else {{
+            timerElement.style.color = '#27ae60';
+            timerElement.style.background = '#eafaf1';
+            timerElement.style.borderColor = '#27ae60';
+        }}
+
+        // Auto-refresh Streamlit when time is up
+        if (timeLeft <= 0) {{
+            // Send message to parent window to trigger refresh
+            window.parent.postMessage({{type: 'time_up'}}, '*');
+        }}
+    }}
+
+    // Add pulse animation for urgency
+    let style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {{
+            0% {{ transform: scale(1); }}
+            50% {{ transform: scale(1.05); }}
+            100% {{ transform: scale(1); }}
+        }}
+    `;
+    document.head.appendChild(style);
+
+    // Update timer every second
+    updateTimer(); // Initial update
+    setInterval(updateTimer, 1000);
+
+    // Listen for messages from Streamlit
+    window.addEventListener('message', function(event) {{
+        if (event.data.type === 'reset_timer') {{
+            startTime = Date.now() / 1000;
+        }}
+    }});
+    </script>
+    """
+    return timer_html
+
 def main():
-    """Main application"""
-    # ALWAYS initialize first - BULLETPROOF
+    """Main application with auto-updating timer"""
     init_session_state()
 
     # Custom CSS
@@ -272,8 +347,30 @@ def main():
         margin-bottom: 8px;
         color: #2c3e50;
     }
+    /* FIXED: Auto-refresh trigger */
+    .auto-refresh {
+        display: none;
+    }
     </style>
     """, unsafe_allow_html=True)
+
+    # Auto-refresh mechanism - FIXED: Periodic updates during gameplay
+    if st.session_state.screen == 'playing' and st.session_state.round_start_time:
+        current_time = time.time()
+        elapsed = current_time - st.session_state.round_start_time
+
+        # Auto-refresh every 2 seconds during active gameplay
+        if current_time - st.session_state.last_update >= 2.0:
+            st.session_state.last_update = current_time
+
+            # Check if time is up
+            if elapsed >= GAME_CONFIG['time_per_round'] and not st.session_state.awaiting_next_round:
+                st.session_state.feedback_message = f"⏰ Time's up! The word was '{st.session_state.current_word}'"
+                st.session_state.feedback_type = 'error'
+                st.session_state.awaiting_next_round = True
+
+            # Force refresh to update timer display
+            st.rerun()
 
     # Top banner advertisement
     show_banner_ad("top")
@@ -286,7 +383,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # BULLETPROOF routing based on screen state
+    # Route to appropriate screen
     if st.session_state.screen == 'welcome':
         show_welcome_screen()
     elif st.session_state.screen == 'playing':
@@ -323,7 +420,7 @@ def show_welcome_screen():
             st.rerun()
 
 def show_game_screen():
-    """Display main game screen"""
+    """Display main game screen with auto-updating timer"""
     # Game stats
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -331,10 +428,18 @@ def show_game_screen():
     with col2:
         st.metric("Score", st.session_state.score)
     with col3:
+        # FIXED: Auto-updating timer display
         if st.session_state.round_start_time:
             elapsed = time.time() - st.session_state.round_start_time
             time_left = max(0, GAME_CONFIG['time_per_round'] - elapsed)
-            st.metric("Time Left", f"{int(time_left)}s")
+
+            # Color-coded metric based on time remaining
+            if time_left <= 10:
+                st.metric("⚠️ Time Left", f"{int(time_left)}s", delta="Hurry!")
+            elif time_left <= 30:
+                st.metric("⚡ Time Left", f"{int(time_left)}s", delta="Getting close")
+            else:
+                st.metric("⏰ Time Left", f"{int(time_left)}s")
         else:
             st.metric("Time Left", "60s")
     with col4:
@@ -342,6 +447,11 @@ def show_game_screen():
             show_rewarded_ad()
             st.session_state.hint_used = True
             st.rerun()
+
+    # ADDED: Auto-updating visual timer with JavaScript
+    if st.session_state.round_start_time and not st.session_state.awaiting_next_round:
+        timer_html = create_auto_refresh_timer()
+        components.html(timer_html, height=100)
 
     # Display scrambled word
     st.markdown(f"""
@@ -403,11 +513,10 @@ def show_interstitial_screen():
     </div>
     """, unsafe_allow_html=True)
 
-    # Show interstitial ad
     show_interstitial_ad()
 
     if st.button("Continue to Next Round", type="primary", use_container_width=True):
-        start_new_round()  # Direct to next round
+        start_new_round()
         st.rerun()
 
 def show_final_screen():
