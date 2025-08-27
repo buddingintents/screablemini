@@ -41,6 +41,8 @@ def add_adsense_meta_tag():
         meta.content = 'ca-pub-2020561089374332';
         document.head.appendChild(meta);
     }
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2020561089374332"
+     crossorigin="anonymous"></script>
     </script>
     """
     components.html(meta_html, height=0)
