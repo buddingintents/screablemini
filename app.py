@@ -33,12 +33,10 @@ WORD_LIST = [
 # Google AdSense integration functions
 def show_banner_ad(ad_type="top"):
     """Display banner advertisement using Google AdSense"""
-    # Get AdSense configuration from Streamlit secrets
     try:
         adsense_client = st.secrets["google"]["adsense_client_id"]
         ad_slot = st.secrets["google"][f"{ad_type}_ad_slot"]
     except:
-        # Fallback to demo mode if secrets not configured
         adsense_client = "ca-pub-1234567890123456"
         ad_slot = "1234567890"
 
@@ -80,13 +78,6 @@ def show_interstitial_ad():
         <script>
              (adsbygoogle = window.adsbygoogle || []).push({{}});
         </script>
-
-        <div style="margin-top: 20px;">
-            <button onclick="window.parent.postMessage('continue_game', '*')" 
-                    style="background: #4CAF50; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px;">
-                Continue to Next Round →
-            </button>
-        </div>
     </div>
     """
     components.html(ad_html, height=350)
@@ -124,43 +115,37 @@ def scramble_word(word):
     letters = list(word)
     random.shuffle(letters)
     scrambled = ''.join(letters)
-    # Ensure scrambled word is different from original
     return scrambled if scrambled != word else scramble_word(word)
 
 def initialize_game():
     """Initialize game state"""
-    if 'game_state' not in st.session_state:
-        st.session_state.game_state = {
-            'current_round': 1,
-            'score': 0,
-            'total_rounds': GAME_CONFIG['rounds_per_game'],
-            'round_start_time': None,
-            'current_word': '',
-            'scrambled_word': '',
-            'hint_used': False,
-            'game_active': False,
-            'game_complete': False,
-            'show_interstitial': False,
-            'feedback_message': '',
-            'feedback_type': 'info',
-            'round_completed': False
-        }
+    if 'game_initialized' not in st.session_state:
+        st.session_state.game_initialized = True
+        st.session_state.current_round = 1
+        st.session_state.score = 0
+        st.session_state.current_word = ''
+        st.session_state.scrambled_word = ''
+        st.session_state.round_start_time = None
+        st.session_state.hint_used = False
+        st.session_state.game_active = False
+        st.session_state.game_complete = False
+        st.session_state.show_interstitial = False
+        st.session_state.feedback_message = ''
+        st.session_state.feedback_type = 'info'
+        st.session_state.awaiting_next_round = False
 
 def start_new_round():
     """Start a new game round"""
-    if st.session_state.game_state['current_round'] <= GAME_CONFIG['rounds_per_game']:
-        word = random.choice(WORD_LIST)
-        st.session_state.game_state.update({
-            'current_word': word,
-            'scrambled_word': scramble_word(word),
-            'round_start_time': time.time(),
-            'hint_used': False,
-            'game_active': True,
-            'show_interstitial': False,
-            'feedback_message': '',
-            'feedback_type': 'info',
-            'round_completed': False
-        })
+    word = random.choice(WORD_LIST)
+    st.session_state.current_word = word
+    st.session_state.scrambled_word = scramble_word(word)
+    st.session_state.round_start_time = time.time()
+    st.session_state.hint_used = False
+    st.session_state.game_active = True
+    st.session_state.show_interstitial = False
+    st.session_state.feedback_message = ''
+    st.session_state.feedback_type = 'info'
+    st.session_state.awaiting_next_round = False
 
 def calculate_score(time_taken):
     """Calculate score based on correctness and time"""
@@ -169,16 +154,9 @@ def calculate_score(time_taken):
     time_bonus = int(time_remaining * GAME_CONFIG['time_bonus_multiplier'])
     return base_points + time_bonus
 
-def end_game():
-    """End the current game"""
-    st.session_state.game_state.update({
-        'game_active': False,
-        'game_complete': True
-    })
-
 # Main application
 def main():
-    # Custom CSS for better styling - FIXED COLOR CONTRAST
+    # Custom CSS for better styling
     st.markdown("""
     <style>
     .main-header {
@@ -208,41 +186,6 @@ def main():
         border-radius: 10px;
         border: 2px dashed #4CAF50;
     }
-    .stats-container {
-        display: flex;
-        justify-content: space-around;
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        margin: 20px 0;
-    }
-    .stat-item {
-        text-align: center;
-    }
-    .stat-value {
-        font-size: 2em;
-        font-weight: bold;
-        color: #2E8B57;
-    }
-    .stat-label {
-        color: #666;
-        font-size: 0.9em;
-    }
-    .feedback-success {
-        background: #d4edda;
-        color: #155724;
-        padding: 15px;
-        border-radius: 5px;
-        border-left: 4px solid #28a745;
-    }
-    .feedback-error {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 15px;
-        border-radius: 5px;
-        border-left: 4px solid #dc3545;
-    }
-    /* FIXED: Better color contrast for instructions */
     .game-instructions {
         background: #ffffff;
         color: #2c3e50;
@@ -283,20 +226,14 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # Check if game is not started yet
-    if not st.session_state.game_state['game_active'] and not st.session_state.game_state['game_complete']:
+    # Game state routing
+    if not st.session_state.game_active and not st.session_state.game_complete:
         show_welcome_screen()
-
-    # Show interstitial ad between rounds
-    elif st.session_state.game_state['show_interstitial']:
+    elif st.session_state.show_interstitial:
         show_interstitial_screen()
-
-    # Main game screen
-    elif st.session_state.game_state['game_active']:
+    elif st.session_state.game_active:
         show_game_screen()
-
-    # Final score screen
-    elif st.session_state.game_state['game_complete']:
+    elif st.session_state.game_complete:
         show_final_screen()
 
     # Footer advertisement
@@ -327,159 +264,150 @@ def show_welcome_screen():
 
 def show_interstitial_screen():
     """Display interstitial advertisement screen"""
-    st.markdown("""
+    st.markdown(f"""
     <div class="game-card">
-        <h2 style="text-align: center; color: #4CAF50;">🎉 Round Complete!</h2>
+        <h2 style="text-align: center; color: #4CAF50;">🎉 Round {st.session_state.current_round - 1} Complete!</h2>
         <p style="text-align: center; font-size: 1.2em;">
-            Great job! You completed round {current_round}.
+            Great job! Ready for the next challenge?
         </p>
     </div>
-    """.format(current_round=st.session_state.game_state['current_round'] - 1), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
     # Show interstitial ad
     show_interstitial_ad()
 
     if st.button("Continue to Next Round", type="primary", use_container_width=True):
-        if st.session_state.game_state['current_round'] <= GAME_CONFIG['rounds_per_game']:
+        if st.session_state.current_round <= GAME_CONFIG['rounds_per_game']:
             start_new_round()
         else:
-            end_game()
+            st.session_state.game_active = False
+            st.session_state.game_complete = True
         st.rerun()
 
 def show_game_screen():
-    """Display main game screen"""
-    game_state = st.session_state.game_state
-
+    """Display main game screen - FIXED FORM SUBMISSION"""
     # Game stats
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Round", f"{game_state['current_round']}/{game_state['total_rounds']}")
+        st.metric("Round", f"{st.session_state.current_round}/{GAME_CONFIG['rounds_per_game']}")
     with col2:
-        st.metric("Score", game_state['score'])
+        st.metric("Score", st.session_state.score)
     with col3:
-        # Calculate time remaining
-        if game_state['round_start_time']:
-            elapsed = time.time() - game_state['round_start_time']
+        if st.session_state.round_start_time:
+            elapsed = time.time() - st.session_state.round_start_time
             time_left = max(0, GAME_CONFIG['time_per_round'] - elapsed)
             st.metric("Time Left", f"{int(time_left)}s")
         else:
             st.metric("Time Left", "60s")
     with col4:
-        if st.button("💡 Get Hint", help="Watch an ad to get the first letter"):
-            show_hint()
+        if st.button("💡 Get Hint", help="Watch an ad to get the first letter") and not st.session_state.hint_used:
+            show_rewarded_ad()
+            st.session_state.hint_used = True
+            st.rerun()
 
     # Display scrambled word
     st.markdown(f"""
     <div class="scrambled-word">
-        {game_state['scrambled_word']}
+        {st.session_state.scrambled_word}
     </div>
     """, unsafe_allow_html=True)
 
     # Show hint if used
-    if game_state['hint_used']:
-        st.info(f"💡 Hint: The word starts with '{game_state['current_word'][0]}'")
-
-    # User input form
-    with st.form("guess_form", clear_on_submit=True):
-        user_guess = st.text_input(
-            "Your guess:", 
-            placeholder="Enter the unscrambled word...",
-            key=f"user_input_{game_state['current_round']}_{time.time()}"  # Unique key to prevent caching
-        ).upper().strip()
-
-        col1, col2 = st.columns(2)
-        with col1:
-            submit_guess = st.form_submit_button("Submit Guess", type="primary", use_container_width=True)
-        with col2:
-            skip_round = st.form_submit_button("Skip Round", use_container_width=True)
-
-    # Process guess - FIXED: Proper round progression
-    if submit_guess and user_guess:
-        process_guess(user_guess)
-    elif skip_round:
-        next_round()
+    if st.session_state.hint_used:
+        st.info(f"💡 Hint: The word starts with '{st.session_state.current_word[0]}'")
 
     # Show feedback
-    if game_state['feedback_message'] and not game_state['round_completed']:
-        if game_state['feedback_type'] == 'success':
-            st.success(game_state['feedback_message'])
-        elif game_state['feedback_type'] == 'error':
-            st.error(game_state['feedback_message'])
+    if st.session_state.feedback_message:
+        if st.session_state.feedback_type == 'success':
+            st.success(st.session_state.feedback_message)
+        elif st.session_state.feedback_type == 'error':
+            st.error(st.session_state.feedback_message)
         else:
-            st.info(game_state['feedback_message'])
+            st.info(st.session_state.feedback_message)
 
-    # FIXED: Auto-advance after correct answer
-    if game_state['round_completed']:
-        st.success(game_state['feedback_message'])
+    # FIXED: Simplified form handling without dynamic keys
+    if not st.session_state.awaiting_next_round:
+        # User input form - FIXED: Static form key
+        with st.form(key="guess_form", clear_on_submit=True):
+            user_guess = st.text_input(
+                "Your guess:", 
+                placeholder="Enter the unscrambled word...",
+                help="Type your answer and click Submit Guess"
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                submit_guess = st.form_submit_button("Submit Guess", type="primary", use_container_width=True)
+            with col2:
+                skip_round = st.form_submit_button("Skip Round", use_container_width=True)
+
+        # Process form submission - FIXED: Immediate processing
+        if submit_guess:
+            if user_guess.strip():
+                process_guess(user_guess.strip().upper())
+            else:
+                st.warning("Please enter a word!")
+
+        if skip_round:
+            next_round()
+    else:
+        # Show next round button
         if st.button("🎯 Next Round", type="primary", use_container_width=True):
             next_round()
 
-def show_hint():
-    """Display hint by showing rewarded ad"""
-    if not st.session_state.game_state['hint_used']:
-        # Show rewarded ad
-        show_rewarded_ad()
-
-        # Mark hint as used
-        st.session_state.game_state['hint_used'] = True
-        st.success("💡 Hint unlocked! The first letter is revealed above.")
-        st.rerun()
-    else:
-        st.info("💡 Hint already used for this round!")
-
 def process_guess(user_guess):
-    """Process user's guess - FIXED: Proper round progression"""
-    game_state = st.session_state.game_state
-    current_word = game_state['current_word']
+    """Process user's guess - FIXED: Simplified state management"""
+    current_word = st.session_state.current_word
 
     if user_guess == current_word:
         # Correct guess
-        elapsed_time = time.time() - game_state['round_start_time']
+        elapsed_time = time.time() - st.session_state.round_start_time
         round_score = calculate_score(elapsed_time)
 
-        st.session_state.game_state['score'] += round_score
-        st.session_state.game_state['feedback_message'] = f"🎉 Correct! '{current_word}' is right! You earned {round_score} points!"
-        st.session_state.game_state['feedback_type'] = 'success'
-        st.session_state.game_state['round_completed'] = True
-
-        st.rerun()
+        st.session_state.score += round_score
+        st.session_state.feedback_message = f"🎉 Correct! '{current_word}' is right! You earned {round_score} points!"
+        st.session_state.feedback_type = 'success'
+        st.session_state.awaiting_next_round = True
     else:
         # Incorrect guess
-        st.session_state.game_state['feedback_message'] = f"❌ '{user_guess}' is not correct. Try again!"
-        st.session_state.game_state['feedback_type'] = 'error'
-        st.session_state.game_state['round_completed'] = False
-        st.rerun()
+        st.session_state.feedback_message = f"❌ '{user_guess}' is not correct. Try again!"
+        st.session_state.feedback_type = 'error'
+        st.session_state.awaiting_next_round = False
+
+    # Force immediate rerun to show feedback
+    st.rerun()
 
 def next_round():
-    """Move to next round or end game - FIXED: Proper state management"""
-    st.session_state.game_state['current_round'] += 1
+    """Move to next round or end game"""
+    st.session_state.current_round += 1
+    st.session_state.feedback_message = ''
+    st.session_state.awaiting_next_round = False
 
-    if st.session_state.game_state['current_round'] <= GAME_CONFIG['rounds_per_game']:
+    if st.session_state.current_round <= GAME_CONFIG['rounds_per_game']:
         # Show interstitial ad between rounds
-        st.session_state.game_state['show_interstitial'] = True
-        st.session_state.game_state['game_active'] = False
+        st.session_state.show_interstitial = True
+        st.session_state.game_active = False
     else:
         # End game
-        end_game()
+        st.session_state.game_active = False
+        st.session_state.game_complete = True
 
     st.rerun()
 
 def show_final_screen():
     """Display final score and game over screen"""
-    game_state = st.session_state.game_state
-
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
         st.markdown(f"""
         <div class="game-card" style="text-align: center;">
             <h2>🎮 Game Complete!</h2>
-            <div class="stat-item">
-                <div class="stat-value">{game_state['score']}</div>
-                <div class="stat-label">Final Score</div>
+            <div style="font-size: 3em; color: #4CAF50; margin: 20px 0;">
+                {st.session_state.score}
             </div>
+            <div style="color: #666; margin-bottom: 30px;">Final Score</div>
             <div style="margin: 30px 0;">
-                {get_performance_message(game_state['score'])}
+                {get_performance_message(st.session_state.score)}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -487,28 +415,15 @@ def show_final_screen():
         col_a, col_b = st.columns(2)
         with col_a:
             if st.button("🔄 Play Again", type="primary", use_container_width=True):
-                # Reset game state
-                st.session_state.game_state = {
-                    'current_round': 1,
-                    'score': 0,
-                    'total_rounds': GAME_CONFIG['rounds_per_game'],
-                    'round_start_time': None,
-                    'current_word': '',
-                    'scrambled_word': '',
-                    'hint_used': False,
-                    'game_active': False,
-                    'game_complete': False,
-                    'show_interstitial': False,
-                    'feedback_message': '',
-                    'feedback_type': 'info',
-                    'round_completed': False
-                }
+                # Reset all game state
+                for key in list(st.session_state.keys()):
+                    del st.session_state[key]
                 st.rerun()
 
         with col_b:
             if st.button("🏠 Main Menu", use_container_width=True):
-                # Reset to welcome screen
-                st.session_state.game_state['game_complete'] = False
+                st.session_state.game_complete = False
+                st.session_state.game_active = False
                 st.rerun()
 
 def get_performance_message(score):
