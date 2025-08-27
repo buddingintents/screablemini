@@ -991,26 +991,13 @@ def show_mode_selection_screen():
 def show_enhanced_game_screen():
     """Enhanced gameplay screen with all features"""
     # Game stats with power-up indicators
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Round", f"{st.session_state.current_round}/{st.session_state.total_rounds}")
     with col2:
         multiplier_text = f" (×{st.session_state.round_multiplier})" if st.session_state.round_multiplier > 1 else ""
         st.metric("Score", f"{st.session_state.score}{multiplier_text}")
     with col3:
-        if st.session_state.round_start_time:
-            elapsed = time.time() - st.session_state.round_start_time
-            time_left = max(0, st.session_state.time_per_round - elapsed)
-
-            if st.session_state.time_freeze_remaining > 0:
-                st.metric("❄️ Time Frozen", f"{int(st.session_state.time_freeze_remaining)}s")
-            elif time_left <= 10:
-                st.metric("⚠️ Time Left", f"{int(time_left)}s", delta="Hurry!")
-            else:
-                st.metric("⏰ Time Left", f"{int(time_left)}s")
-        else:
-            st.metric("Time Left", f"{st.session_state.time_per_round}s")
-    with col4:
         difficulty_colors = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴'}
         st.metric("Difficulty", f"{difficulty_colors.get(st.session_state.current_difficulty, '⚪')} {st.session_state.current_difficulty.title()}")
 
