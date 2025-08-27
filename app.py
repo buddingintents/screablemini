@@ -142,7 +142,8 @@ def initialize_game():
             'game_complete': False,
             'show_interstitial': False,
             'feedback_message': '',
-            'feedback_type': 'info'
+            'feedback_type': 'info',
+            'round_completed': False
         }
 
 def start_new_round():
@@ -157,7 +158,8 @@ def start_new_round():
             'game_active': True,
             'show_interstitial': False,
             'feedback_message': '',
-            'feedback_type': 'info'
+            'feedback_type': 'info',
+            'round_completed': False
         })
 
 def calculate_score(time_taken):
@@ -176,7 +178,7 @@ def end_game():
 
 # Main application
 def main():
-    # Custom CSS for better styling
+    # Custom CSS for better styling - FIXED COLOR CONTRAST
     st.markdown("""
     <style>
     .main-header {
@@ -240,11 +242,29 @@ def main():
         border-radius: 5px;
         border-left: 4px solid #dc3545;
     }
+    /* FIXED: Better color contrast for instructions */
     .game-instructions {
-        background: #e3f2fd;
-        padding: 20px;
-        border-radius: 10px;
+        background: #ffffff;
+        color: #2c3e50;
+        border: 2px solid #3498db;
+        padding: 25px;
+        border-radius: 12px;
         margin: 20px 0;
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
+    }
+    .game-instructions h3 {
+        color: #2980b9;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+    .game-instructions ul {
+        color: #34495e;
+        font-size: 1.1em;
+        line-height: 1.6;
+    }
+    .game-instructions li {
+        margin-bottom: 8px;
+        color: #2c3e50;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -364,7 +384,7 @@ def show_game_screen():
         user_guess = st.text_input(
             "Your guess:", 
             placeholder="Enter the unscrambled word...",
-            key="user_input"
+            key=f"user_input_{game_state['current_round']}_{time.time()}"  # Unique key to prevent caching
         ).upper().strip()
 
         col1, col2 = st.columns(2)
@@ -373,20 +393,26 @@ def show_game_screen():
         with col2:
             skip_round = st.form_submit_button("Skip Round", use_container_width=True)
 
-    # Process guess
+    # Process guess - FIXED: Proper round progression
     if submit_guess and user_guess:
         process_guess(user_guess)
     elif skip_round:
         next_round()
 
     # Show feedback
-    if game_state['feedback_message']:
+    if game_state['feedback_message'] and not game_state['round_completed']:
         if game_state['feedback_type'] == 'success':
             st.success(game_state['feedback_message'])
         elif game_state['feedback_type'] == 'error':
             st.error(game_state['feedback_message'])
         else:
             st.info(game_state['feedback_message'])
+
+    # FIXED: Auto-advance after correct answer
+    if game_state['round_completed']:
+        st.success(game_state['feedback_message'])
+        if st.button("🎯 Next Round", type="primary", use_container_width=True):
+            next_round()
 
 def show_hint():
     """Display hint by showing rewarded ad"""
@@ -402,7 +428,7 @@ def show_hint():
         st.info("💡 Hint already used for this round!")
 
 def process_guess(user_guess):
-    """Process user's guess"""
+    """Process user's guess - FIXED: Proper round progression"""
     game_state = st.session_state.game_state
     current_word = game_state['current_word']
 
@@ -414,18 +440,18 @@ def process_guess(user_guess):
         st.session_state.game_state['score'] += round_score
         st.session_state.game_state['feedback_message'] = f"🎉 Correct! '{current_word}' is right! You earned {round_score} points!"
         st.session_state.game_state['feedback_type'] = 'success'
+        st.session_state.game_state['round_completed'] = True
 
-        # Auto advance after short delay
-        time.sleep(1)
-        next_round()
+        st.rerun()
     else:
         # Incorrect guess
         st.session_state.game_state['feedback_message'] = f"❌ '{user_guess}' is not correct. Try again!"
         st.session_state.game_state['feedback_type'] = 'error'
+        st.session_state.game_state['round_completed'] = False
         st.rerun()
 
 def next_round():
-    """Move to next round or end game"""
+    """Move to next round or end game - FIXED: Proper state management"""
     st.session_state.game_state['current_round'] += 1
 
     if st.session_state.game_state['current_round'] <= GAME_CONFIG['rounds_per_game']:
@@ -474,7 +500,8 @@ def show_final_screen():
                     'game_complete': False,
                     'show_interstitial': False,
                     'feedback_message': '',
-                    'feedback_type': 'info'
+                    'feedback_type': 'info',
+                    'round_completed': False
                 }
                 st.rerun()
 
