@@ -683,7 +683,7 @@ def main():
     init_session_state()
     add_adsense_meta_tag()
 
-    # Enhanced CSS with new features
+    # FIXED: Enhanced CSS with proper final screen contrast
     st.markdown("""
     <style>
     .main-header {
@@ -772,15 +772,57 @@ def main():
         border-radius: 0 8px 8px 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    /* FIXED: Perfect contrast for final score card */
     .final-score-card {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-        color: #2c3e50;
-        border: 3px solid #4CAF50;
+        background: #ffffff;
+        color: #1a1a1a;
+        border: 4px solid #4CAF50;
         padding: 40px;
         border-radius: 20px;
         margin: 25px 0;
-        box-shadow: 0 12px 24px rgba(76, 175, 80, 0.2);
+        box-shadow: 0 12px 24px rgba(76, 175, 80, 0.3);
         text-align: center;
+    }
+    .final-score-title {
+        color: #1a1a1a;
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+    .final-score-value {
+        font-size: 4.5em;
+        color: #4CAF50;
+        font-weight: bold;
+        margin: 30px 0;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 15px;
+        border: 3px solid #4CAF50;
+    }
+    .final-score-label {
+        color: #1a1a1a;
+        font-size: 1.4em;
+        font-weight: 600;
+        margin-bottom: 30px;
+    }
+    .final-score-summary {
+        background: #f8f9fa;
+        color: #1a1a1a;
+        padding: 25px;
+        border-radius: 12px;
+        margin: 25px 0;
+        border: 2px solid #e9ecef;
+    }
+    .performance-message {
+        color: #1a1a1a;
+        font-size: 1.3em;
+        font-weight: 600;
+        margin: 25px 0;
+        padding: 20px;
+        background: #e8f5e8;
+        border-radius: 12px;
+        border-left: 5px solid #4CAF50;
     }
     .xp-progress {
         background: #e9ecef;
@@ -991,13 +1033,26 @@ def show_mode_selection_screen():
 def show_enhanced_game_screen():
     """Enhanced gameplay screen with all features"""
     # Game stats with power-up indicators
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Round", f"{st.session_state.current_round}/{st.session_state.total_rounds}")
     with col2:
         multiplier_text = f" (×{st.session_state.round_multiplier})" if st.session_state.round_multiplier > 1 else ""
         st.metric("Score", f"{st.session_state.score}{multiplier_text}")
     with col3:
+        if st.session_state.round_start_time:
+            elapsed = time.time() - st.session_state.round_start_time
+            time_left = max(0, st.session_state.time_per_round - elapsed)
+
+            if st.session_state.time_freeze_remaining > 0:
+                st.metric("❄️ Time Frozen", f"{int(st.session_state.time_freeze_remaining)}s")
+            elif time_left <= 10:
+                st.metric("⚠️ Time Left", f"{int(time_left)}s", delta="Hurry!")
+            else:
+                st.metric("⏰ Time Left", f"{int(time_left)}s")
+        else:
+            st.metric("Time Left", f"{st.session_state.time_per_round}s")
+    with col4:
         difficulty_colors = {'easy': '🟢', 'medium': '🟡', 'hard': '🔴'}
         st.metric("Difficulty", f"{difficulty_colors.get(st.session_state.current_difficulty, '⚪')} {st.session_state.current_difficulty.title()}")
 
@@ -1183,35 +1238,49 @@ def next_round():
         st.session_state.screen = 'complete'
 
 def show_enhanced_final_screen():
-    """Enhanced final screen with detailed results"""
+    """FIXED: Enhanced final screen with proper HTML rendering and contrast"""
     profile = st.session_state.player_profile
     results = st.session_state.round_results
 
+    # Calculate stats
+    correct_answers = sum(1 for r in results if r['correct'])
+    total_rounds = len(results)
+    average_time = sum(r['time'] for r in results) / len(results) if results else 0
+    best_time = min(r['time'] for r in results) if results else 0
+    total_xp_earned = GAME_CONFIG['xp_per_game'] + sum(25 for r in results if r['correct'])
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown(f"""
-        <div class="final-score-card">
-            <h2>🎮 Game Complete!</h2>
-            <div style="font-size: 4em; color: #4CAF50; margin: 20px 0; font-weight: bold;">
-                {st.session_state.score}
-            </div>
-            <div style="font-size: 1.3em; margin-bottom: 30px;">Final Score</div>
+        # FIXED: Using Streamlit components instead of HTML markdown to prevent tag rendering
+        st.markdown('<div class="final-score-card">', unsafe_allow_html=True)
 
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <h4>📊 Round Summary</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left;">
-                    <div><strong>Correct Answers:</strong> {sum(1 for r in results if r['correct'])}/{len(results)}</div>
-                    <div><strong>Average Time:</strong> {sum(r['time'] for r in results)/len(results):.1f}s</div>
-                    <div><strong>Best Time:</strong> {min(r['time'] for r in results):.1f}s</div>
-                    <div><strong>Total XP Earned:</strong> +{GAME_CONFIG['xp_per_game'] + sum(25 for r in results if r['correct'])}</div>
-                </div>
-            </div>
+        # Game Complete Title
+        st.markdown('<div class="final-score-title">🎮 Game Complete!</div>', unsafe_allow_html=True)
 
-            <div style="margin: 20px 0;">
-                {get_performance_message_enhanced(st.session_state.score, results)}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Score Display
+        st.markdown(f'<div class="final-score-value">{st.session_state.score}</div>', unsafe_allow_html=True)
+        st.markdown('<div class="final-score-label">Final Score</div>', unsafe_allow_html=True)
+
+        # Round Summary - Using proper Streamlit container instead of HTML
+        st.markdown('<div class="final-score-summary">', unsafe_allow_html=True)
+        st.markdown("#### 📊 Round Summary")
+
+        # Create summary columns using Streamlit
+        sum_col1, sum_col2 = st.columns(2)
+        with sum_col1:
+            st.write(f"**Correct Answers:** {correct_answers}/{total_rounds}")
+            st.write(f"**Best Time:** {best_time:.1f}s")
+        with sum_col2:
+            st.write(f"**Average Time:** {average_time:.1f}s")
+            st.write(f"**Total XP Earned:** +{total_xp_earned}")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Performance Message
+        performance_msg = get_performance_message_enhanced(st.session_state.score, results)
+        st.markdown(f'<div class="performance-message">{performance_msg}</div>', unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # Action buttons
     col1, col2, col3 = st.columns(3)
