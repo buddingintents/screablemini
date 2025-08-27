@@ -130,7 +130,7 @@ def init_session_state():
         st.session_state.feedback_message = ''
         st.session_state.feedback_type = 'info'
         st.session_state.awaiting_next_round = False
-        st.session_state.last_update = time.time()  # For timer updates
+        st.session_state.last_update = time.time()
         st.session_state.initialized = True
 
 def start_new_round():
@@ -232,14 +232,11 @@ def create_auto_refresh_timer():
         let elapsed = currentTime - startTime;
         let timeLeft = Math.max(0, roundDuration - elapsed);
 
-        // Update timer display
         document.getElementById('timer-display').textContent = Math.ceil(timeLeft);
 
-        // Update progress bar
         let progress = (timeLeft / roundDuration) * 100;
         document.getElementById('progress-bar').style.width = progress + '%';
 
-        // Change color based on time remaining
         let timerElement = document.getElementById('countdown-timer');
         if (timeLeft <= 10) {{
             timerElement.style.color = '#e74c3c';
@@ -258,14 +255,11 @@ def create_auto_refresh_timer():
             timerElement.style.borderColor = '#27ae60';
         }}
 
-        // Auto-refresh Streamlit when time is up
         if (timeLeft <= 0) {{
-            // Send message to parent window to trigger refresh
             window.parent.postMessage({{type: 'time_up'}}, '*');
         }}
     }}
 
-    // Add pulse animation for urgency
     let style = document.createElement('style');
     style.textContent = `
         @keyframes pulse {{
@@ -276,11 +270,9 @@ def create_auto_refresh_timer():
     `;
     document.head.appendChild(style);
 
-    // Update timer every second
-    updateTimer(); // Initial update
+    updateTimer();
     setInterval(updateTimer, 1000);
 
-    // Listen for messages from Streamlit
     window.addEventListener('message', function(event) {{
         if (event.data.type === 'reset_timer') {{
             startTime = Date.now() / 1000;
@@ -294,7 +286,7 @@ def main():
     """Main application with auto-updating timer"""
     init_session_state()
 
-    # Custom CSS
+    # Custom CSS - FIXED: Enhanced contrast for final screen
     st.markdown("""
     <style>
     .main-header {
@@ -347,29 +339,71 @@ def main():
         margin-bottom: 8px;
         color: #2c3e50;
     }
-    /* FIXED: Auto-refresh trigger */
+    /* FIXED: Enhanced contrast for final score screen */
+    .final-score-card {
+        background: #ffffff;
+        color: #2c3e50;
+        border: 3px solid #4CAF50;
+        padding: 40px;
+        border-radius: 20px;
+        margin: 20px 0;
+        box-shadow: 0 8px 16px rgba(76, 175, 80, 0.2);
+        text-align: center;
+    }
+    .final-score-title {
+        color: #2c3e50;
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 20px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    .final-score-value {
+        font-size: 4em;
+        color: #4CAF50;
+        font-weight: bold;
+        margin: 30px 0;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 15px;
+        border: 2px solid #4CAF50;
+    }
+    .final-score-label {
+        color: #2c3e50;
+        font-size: 1.3em;
+        font-weight: 600;
+        margin-bottom: 30px;
+    }
+    .performance-message {
+        color: #2c3e50;
+        font-size: 1.4em;
+        font-weight: 600;
+        margin: 30px 0;
+        padding: 20px;
+        background: #e8f5e8;
+        border-radius: 12px;
+        border-left: 5px solid #4CAF50;
+        text-align: left;
+    }
     .auto-refresh {
         display: none;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # Auto-refresh mechanism - FIXED: Periodic updates during gameplay
+    # Auto-refresh mechanism for timer updates
     if st.session_state.screen == 'playing' and st.session_state.round_start_time:
         current_time = time.time()
         elapsed = current_time - st.session_state.round_start_time
 
-        # Auto-refresh every 2 seconds during active gameplay
         if current_time - st.session_state.last_update >= 2.0:
             st.session_state.last_update = current_time
 
-            # Check if time is up
             if elapsed >= GAME_CONFIG['time_per_round'] and not st.session_state.awaiting_next_round:
                 st.session_state.feedback_message = f"⏰ Time's up! The word was '{st.session_state.current_word}'"
                 st.session_state.feedback_type = 'error'
                 st.session_state.awaiting_next_round = True
 
-            # Force refresh to update timer display
             st.rerun()
 
     # Top banner advertisement
@@ -428,12 +462,10 @@ def show_game_screen():
     with col2:
         st.metric("Score", st.session_state.score)
     with col3:
-        # FIXED: Auto-updating timer display
         if st.session_state.round_start_time:
             elapsed = time.time() - st.session_state.round_start_time
             time_left = max(0, GAME_CONFIG['time_per_round'] - elapsed)
 
-            # Color-coded metric based on time remaining
             if time_left <= 10:
                 st.metric("⚠️ Time Left", f"{int(time_left)}s", delta="Hurry!")
             elif time_left <= 30:
@@ -448,7 +480,7 @@ def show_game_screen():
             st.session_state.hint_used = True
             st.rerun()
 
-    # ADDED: Auto-updating visual timer with JavaScript
+    # Auto-updating visual timer
     if st.session_state.round_start_time and not st.session_state.awaiting_next_round:
         timer_html = create_auto_refresh_timer()
         components.html(timer_html, height=100)
@@ -497,7 +529,6 @@ def show_game_screen():
             next_round()
             st.rerun()
     else:
-        # Show next round button
         if st.button("🎯 Next Round", type="primary", use_container_width=True):
             next_round()
             st.rerun()
@@ -520,18 +551,17 @@ def show_interstitial_screen():
         st.rerun()
 
 def show_final_screen():
-    """Display final score screen"""
+    """Display final score screen - FIXED: Enhanced contrast"""
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
+        # FIXED: Using enhanced CSS classes for better contrast
         st.markdown(f"""
-        <div class="game-card" style="text-align: center;">
-            <h2>🎮 Game Complete!</h2>
-            <div style="font-size: 3em; color: #4CAF50; margin: 20px 0;">
-                {st.session_state.score}
-            </div>
-            <div style="color: #666; margin-bottom: 30px;">Final Score</div>
-            <div style="margin: 30px 0;">
+        <div class="final-score-card">
+            <div class="final-score-title">🎮 Game Complete!</div>
+            <div class="final-score-value">{st.session_state.score}</div>
+            <div class="final-score-label">Final Score</div>
+            <div class="performance-message">
                 {get_performance_message(st.session_state.score)}
             </div>
         </div>
