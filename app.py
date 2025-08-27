@@ -1384,11 +1384,13 @@ def show_shop_screen():
             st.rerun()
 
     with col2:
-        st.markdown("**Ways to earn coins:**
+        # FIXED: Proper multiline string formatting
+        ways_to_earn = """**Ways to earn coins:**
 - Complete games
 - Level up
 - Watch ads
-- Daily streaks")
+- Daily streaks"""
+        st.markdown(ways_to_earn)
 
     if st.button("🏠 Back to Home", use_container_width=True):
         st.session_state.screen = 'home'
