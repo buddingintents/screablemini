@@ -235,6 +235,10 @@ def init_session_state():
         st.session_state.show_leaderboard = False
         st.session_state.leaderboard_data = []
 
+        # FIXED: Add hint display state
+        st.session_state.current_hint_text = ''
+        st.session_state.show_hint = False
+
         st.session_state.initialized = True
 
     # Always ensure player profile is initialized
@@ -345,52 +349,135 @@ def scramble_word(word):
     return scrambled if scrambled != word else scramble_word(word)
 
 def get_hint(hint_type):
-    """Enhanced hint system with multiple types"""
+    """FIXED: Enhanced hint system with multiple types"""
     word = st.session_state.current_word
     category = st.session_state.current_category
 
-    hints = {
-        'category': f"💡 Category: This is a {category.replace('_', ' ')}",
-        'definition': get_word_definition(word),
-        'shuffle': f"🔄 Try this arrangement: {scramble_word(word)}",
-        'reveal': get_letter_reveal_hint(word)
-    }
+    # Ensure we have valid word and category
+    if not word:
+        return "No word available for hint"
+    if not category:
+        category = "unknown"
 
-    return hints.get(hint_type, "No hint available")
+    try:
+        if hint_type == 'category':
+            return f"💡 Category: This is a {category.replace('_', ' ')}"
+        elif hint_type == 'definition':
+            return get_word_definition(word)
+        elif hint_type == 'shuffle':
+            new_scramble = scramble_word(word)
+            return f"🔄 Try this arrangement: {new_scramble}"
+        elif hint_type == 'reveal':
+            return get_letter_reveal_hint(word)
+        else:
+            return "Hint type not available"
+    except Exception as e:
+        return f"Error generating hint: {str(e)}"
 
 def get_word_definition(word):
-    """Generate contextual definitions for words"""
+    """FIXED: Generate contextual definitions for words"""
+    if not word:
+        return "💭 No word available for definition"
+
     definitions = {
         # Animals
         'CAT': '🐱 A small domesticated carnivorous mammal',
         'DOG': '🐕 A domesticated descendant of the wolf',
         'ELEPHANT': '🐘 The largest existing land animal',
         'GIRAFFE': '🦒 The tallest living terrestrial animal',
+        'MONKEY': '🐒 A primate mammal that is typically tree-dwelling',
+        'RABBIT': '🐰 A small mammal with long ears and a short tail',
+        'TURTLE': '🐢 A slow-moving reptile with a shell',
+        'CHICKEN': '🐔 A domestic fowl kept for eggs or meat',
+        'DOLPHIN': '🐬 An intelligent marine mammal',
+        'FISH': '🐠 An aquatic vertebrate animal',
+        'BIRD': '🐦 A warm-blooded vertebrate with feathers',
+        'BEAR': '🐻 A large heavy mammal with thick fur',
+        'LION': '🦁 A large wild cat known as king of jungle',
+        'FROG': '🐸 An amphibian that lives both in water and on land',
+        'DUCK': '🦆 A waterfowl with webbed feet',
 
         # Technology
         'PYTHON': '🐍 A high-level programming language',
         'CODING': '💻 The process of creating computer software',
         'ALGORITHM': '⚙️ A step-by-step procedure for solving problems',
+        'LAPTOP': '💻 A portable personal computer',
+        'MOBILE': '📱 A handheld wireless communication device',
+        'TABLET': '📱 A portable touchscreen computer',
+        'CAMERA': '📷 A device for capturing photographs',
+        'STREAM': '🌊 A continuous flow of data or water',
+
+        # Countries
+        'FRANCE': '🇫🇷 A country in Western Europe',
+        'BRAZIL': '🇧🇷 The largest country in South America',
+        'CANADA': '🇨🇦 A country in North America',
+        'EGYPT': '🇪🇬 A country in North Africa',
+        'JAPAN': '🇯🇵 An island nation in East Asia',
+        'RUSSIA': '🇷🇺 The largest country in the world',
+        'MEXICO': '🇲🇽 A country in North America',
 
         # Nature
         'FOREST': '🌲 A large area covered chiefly with trees',
         'SUNSET': '🌅 The time when the sun disappears below the horizon',
+        'JUNGLE': '🌿 A dense tropical forest',
+        'PLANET': '🪐 A large celestial body orbiting a star',
+        'GARDEN': '🌷 A plot of ground where plants are cultivated',
+        'FLOWER': '🌸 The reproductive part of a flowering plant',
+        'WINTER': '❄️ The coldest season of the year',
 
-        # Default
-        'DEFAULT': f'💭 A word related to {st.session_state.current_category}'
+        # Colors
+        'RED': '🔴 The color of blood or fire',
+        'BLUE': '🔵 The color of the sky or sea',
+        'GREEN': '🟢 The color of grass or leaves',
+        'BLACK': '⚫ The darkest color, opposite of white',
+        'WHITE': '⚪ The lightest color, opposite of black',
+        'PINK': '🩷 A pale red color',
+        'GOLD': '🟡 A precious yellow metal',
+
+        # Food
+        'CAKE': '🍰 A sweet dessert typically made with flour',
+        'MILK': '🥛 A white liquid produced by mammals',
+        'BREAD': '🍞 A baked food made from flour and water',
+        'RICE': '🍚 A cereal grain that is a staple food',
+        'MEAT': '🥩 Animal flesh used as food',
+        'SOUP': '🍲 A liquid dish with vegetables, meat, or fish',
+
+        # Objects
+        'BOOK': '📖 A written work consisting of pages',
+        'CHAIR': '🪑 A seat for one person with a back',
+        'DOOR': '🚪 A movable barrier used to close an entrance',
+        'LAMP': '💡 A device that produces light',
+        'DESK': '📝 A piece of furniture with a flat surface for writing',
+        'PHONE': '📞 A device used for communication',
+        'CLOCK': '🕐 A device used to tell time',
+
+        # Hard words
+        'PHILOSOPHY': '🤔 The study of fundamental questions about existence',
+        'PSYCHOLOGY': '🧠 The scientific study of mind and behavior',
+        'MATHEMATICS': '🔢 The study of numbers, quantities, and shapes',
+        'ENGINEERING': '⚙️ The application of science to design and build',
+        'ARCHITECTURE': '🏛️ The design and construction of buildings'
     }
 
-    return definitions.get(word, definitions['DEFAULT'])
+    # Get definition or create a generic one
+    definition = definitions.get(word, f'💭 A word related to {st.session_state.current_category.replace("_", " ")}')
+    return definition
 
 def get_letter_reveal_hint(word):
-    """Smart letter reveal based on difficulty"""
-    if len(word) <= 4:
-        return f"💡 First letter: {word[0]}"
-    elif len(word) <= 7:
-        return f"💡 Letters: {word[0]}_{'_' * (len(word)-2)}{word[-1]}"
-    else:
-        mid = len(word) // 2
-        return f"💡 Letters: {word[0]}_{word[mid]}_{'_' * (len(word)-3)}{word[-1]}"
+    """FIXED: Smart letter reveal based on difficulty"""
+    if not word:
+        return "💡 No word available for letter reveal"
+
+    try:
+        if len(word) <= 4:
+            return f"💡 First letter: {word[0]}"
+        elif len(word) <= 7:
+            return f"💡 Letters: {word[0]}_{'_' * (len(word)-2)}{word[-1]}"
+        else:
+            mid = len(word) // 2
+            return f"💡 Letters: {word[0]}_{word[mid]}_{'_' * (len(word)-3)}{word[-1]}"
+    except Exception as e:
+        return f"💡 Error revealing letters: {str(e)}"
 
 def use_power_up(power_up_type):
     """Activate power-up effects"""
@@ -472,6 +559,10 @@ def start_new_round():
     st.session_state.round_multiplier = 1
     st.session_state.letters_revealed = []
     st.session_state.word_bank_shown = False
+
+    # FIXED: Reset hint display state
+    st.session_state.current_hint_text = ''
+    st.session_state.show_hint = False
 
 def process_guess(user_guess):
     """Process user guess with comprehensive feedback"""
@@ -683,7 +774,7 @@ def main():
     init_session_state()
     add_adsense_meta_tag()
 
-    # FIXED: Enhanced CSS with proper final screen contrast
+    # Enhanced CSS with proper final screen contrast
     st.markdown("""
     <style>
     .main-header {
@@ -836,6 +927,16 @@ def main():
         height: 100%;
         transition: width 0.5s ease;
         border-radius: 10px;
+    }
+    /* FIXED: Hint display styles */
+    .hint-display {
+        background: #e3f2fd;
+        color: #1565c0;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border-left: 4px solid #2196f3;
+        font-weight: 500;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -1031,7 +1132,7 @@ def show_mode_selection_screen():
         st.rerun()
 
 def show_enhanced_game_screen():
-    """Enhanced gameplay screen with all features"""
+    """FIXED: Enhanced gameplay screen with working hint system"""
     # Game stats with power-up indicators
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1115,9 +1216,18 @@ def show_enhanced_game_screen():
                     process_guess(option)
                     st.rerun()
 
-    # Hint system
+    # FIXED: Working hint system
     if not st.session_state.awaiting_next_round and not st.session_state.word_bank_shown:
         st.markdown("#### 💡 Hints Available")
+
+        # Display current hint if one is active
+        if st.session_state.show_hint and st.session_state.current_hint_text:
+            st.markdown(f"""
+            <div class="hint-display">
+                {st.session_state.current_hint_text}
+            </div>
+            """, unsafe_allow_html=True)
+
         hint_cols = st.columns(4)
 
         hint_types = {
@@ -1129,17 +1239,19 @@ def show_enhanced_game_screen():
 
         for i, (hint_id, (icon, name)) in enumerate(hint_types.items()):
             with hint_cols[i]:
-                if st.session_state.hints_available[hint_id]:
+                if st.session_state.hints_available.get(hint_id, True):
                     if st.button(f"{icon} {name}", key=f"hint_{hint_id}", use_container_width=True):
+                        # Generate and display hint
                         hint_text = get_hint(hint_id)
-                        st.info(hint_text)
+                        st.session_state.current_hint_text = hint_text
+                        st.session_state.show_hint = True
                         st.session_state.hints_available[hint_id] = False
                         st.session_state.player_profile['statistics']['hints_used'] += 1
                         st.rerun()
                 else:
                     st.markdown(f"""
                     <div style="text-align: center; padding: 8px; background: #f8f9fa; border-radius: 5px; color: #6c757d;">
-                        {icon} Used
+                        {icon}<br>Used
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -1185,7 +1297,8 @@ def show_enhanced_game_screen():
             if available_hints:
                 hint_id = random.choice(available_hints)
                 hint_text = get_hint(hint_id)
-                st.success(f"🎁 Free hint earned! {hint_text}")
+                st.session_state.current_hint_text = f"🎁 Free hint: {hint_text}"
+                st.session_state.show_hint = True
                 st.session_state.hints_available[hint_id] = False
                 st.rerun()
     else:
@@ -1238,7 +1351,7 @@ def next_round():
         st.session_state.screen = 'complete'
 
 def show_enhanced_final_screen():
-    """FIXED: Enhanced final screen with proper HTML rendering and contrast"""
+    """Enhanced final screen with proper HTML rendering and contrast"""
     profile = st.session_state.player_profile
     results = st.session_state.round_results
 
@@ -1251,7 +1364,7 @@ def show_enhanced_final_screen():
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # FIXED: Using Streamlit components instead of HTML markdown to prevent tag rendering
+        # Using Streamlit components instead of HTML markdown to prevent tag rendering
         st.markdown('<div class="final-score-card">', unsafe_allow_html=True)
 
         # Game Complete Title
@@ -1440,7 +1553,6 @@ def show_shop_screen():
             st.rerun()
 
     with col2:
-        # FIXED: Proper multiline string formatting
         ways_to_earn = """**Ways to earn coins:**
 - Complete games
 - Level up
@@ -1564,6 +1676,8 @@ def reset_game():
     st.session_state.time_freeze_remaining = 0
     st.session_state.letters_revealed = []
     st.session_state.word_bank_shown = False
+    st.session_state.current_hint_text = ''
+    st.session_state.show_hint = False
 
 if __name__ == "__main__":
     main()
