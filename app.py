@@ -2,8 +2,6 @@ import streamlit as st
 import random
 import time
 import streamlit.components.v1 as components
-import threading
-from datetime import datetime
 
 # Configure page
 st.set_page_config(
@@ -32,17 +30,43 @@ WORD_LIST = [
     "PUZZLE", "QUARTZ", "ROCKET", "SILVER", "TEMPLE", "VIKING", "WHISTLE"
 ]
 
+def add_adsense_meta_tag():
+    """Add Google AdSense account verification meta tag"""
+    meta_html = """
+    <script>
+    // Add AdSense meta tag to document head
+    if (!document.querySelector('meta[name="google-adsense-account"]')) {
+        var meta = document.createElement('meta');
+        meta.name = 'google-adsense-account';
+        meta.content = 'ca-pub-2020561089374332';
+        document.head.appendChild(meta);
+    }
+    </script>
+    """
+    components.html(meta_html, height=0)
+
 def show_banner_ad(ad_type="top"):
     """Display banner advertisement using Google AdSense"""
     try:
         adsense_client = st.secrets["google"]["adsense_client_id"]
         ad_slot = st.secrets["google"][f"{ad_type}_ad_slot"]
     except:
-        adsense_client = "ca-pub-1234567890123456"
+        # Use the provided AdSense account as fallback
+        adsense_client = "ca-pub-2020561089374332"
         ad_slot = "1234567890"
 
     ad_html = f"""
     <div style="text-align: center; margin: 20px 0;">
+        <!-- Google AdSense Account Meta Tag -->
+        <script>
+        if (!document.querySelector('meta[name="google-adsense-account"]')) {{
+            var meta = document.createElement('meta');
+            meta.name = 'google-adsense-account';
+            meta.content = 'ca-pub-2020561089374332';
+            document.head.appendChild(meta);
+        }}
+        </script>
+
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={adsense_client}"
                 crossorigin="anonymous"></script>
         <ins class="adsbygoogle"
@@ -62,13 +86,23 @@ def show_interstitial_ad():
         adsense_client = st.secrets["google"]["adsense_client_id"]
         interstitial_slot = st.secrets["google"]["interstitial_ad_slot"]
     except:
-        adsense_client = "ca-pub-1234567890123456"
+        adsense_client = "ca-pub-2020561089374332"
         interstitial_slot = "1234567890"
 
     ad_html = f"""
     <div style="text-align: center; padding: 40px; background: #f0f8ff; border: 2px dashed #4CAF50; border-radius: 10px; margin: 20px 0;">
         <h3 style="color: #2E8B57; margin-bottom: 20px;">🎯 Round Complete!</h3>
         <p style="color: #666; margin-bottom: 20px;">Great job! Here's a quick break before the next round.</p>
+
+        <!-- Google AdSense Account Meta Tag -->
+        <script>
+        if (!document.querySelector('meta[name="google-adsense-account"]')) {{
+            var meta = document.createElement('meta');
+            meta.name = 'google-adsense-account';
+            meta.content = 'ca-pub-2020561089374332';
+            document.head.appendChild(meta);
+        }}
+        </script>
 
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={adsense_client}"
                 crossorigin="anonymous"></script>
@@ -89,13 +123,23 @@ def show_rewarded_ad():
         adsense_client = st.secrets["google"]["adsense_client_id"]
         rewarded_slot = st.secrets["google"]["rewarded_ad_slot"]
     except:
-        adsense_client = "ca-pub-1234567890123456"
+        adsense_client = "ca-pub-2020561089374332"
         rewarded_slot = "1234567890"
 
     ad_html = f"""
     <div style="text-align: center; padding: 30px; background: #fff8dc; border: 2px solid #ffd700; border-radius: 10px;">
         <h4 style="color: #b8860b; margin-bottom: 15px;">💡 Get a Hint!</h4>
         <p style="color: #666; margin-bottom: 20px;">Watch this ad to reveal the first letter of the word!</p>
+
+        <!-- Google AdSense Account Meta Tag -->
+        <script>
+        if (!document.querySelector('meta[name="google-adsense-account"]')) {{
+            var meta = document.createElement('meta');
+            meta.name = 'google-adsense-account';
+            meta.content = 'ca-pub-2020561089374332';
+            document.head.appendChild(meta);
+        }}
+        </script>
 
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={adsense_client}"
                 crossorigin="anonymous"></script>
@@ -209,6 +253,9 @@ def get_performance_message(score):
 
 def create_auto_refresh_timer():
     """Create JavaScript-based auto-refreshing timer"""
+    start_time = st.session_state.round_start_time if st.session_state.round_start_time else time.time()
+    round_duration = GAME_CONFIG['time_per_round']
+
     timer_html = f"""
     <div id="timer-container" style="text-align: center; margin: 10px 0;">
         <div id="countdown-timer" style="font-size: 1.5em; font-weight: bold; color: #e74c3c; 
@@ -224,8 +271,8 @@ def create_auto_refresh_timer():
     </div>
 
     <script>
-    let startTime = {st.session_state.round_start_time if st.session_state.round_start_time else time.time()};
-    let roundDuration = {GAME_CONFIG['time_per_round']};
+    let startTime = {start_time};
+    let roundDuration = {round_duration};
 
     function updateTimer() {{
         let currentTime = Date.now() / 1000;
@@ -283,10 +330,13 @@ def create_auto_refresh_timer():
     return timer_html
 
 def main():
-    """Main application with auto-updating timer"""
+    """Main application with auto-updating timer and AdSense meta tag"""
     init_session_state()
 
-    # Custom CSS - FIXED: Enhanced contrast for final screen
+    # Add AdSense account verification meta tag
+    add_adsense_meta_tag()
+
+    # Custom CSS
     st.markdown("""
     <style>
     .main-header {
@@ -339,7 +389,6 @@ def main():
         margin-bottom: 8px;
         color: #2c3e50;
     }
-    /* FIXED: Enhanced contrast for final score screen */
     .final-score-card {
         background: #ffffff;
         color: #2c3e50;
@@ -384,9 +433,6 @@ def main():
         border-radius: 12px;
         border-left: 5px solid #4CAF50;
         text-align: left;
-    }
-    .auto-refresh {
-        display: none;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -551,11 +597,10 @@ def show_interstitial_screen():
         st.rerun()
 
 def show_final_screen():
-    """Display final score screen - FIXED: Enhanced contrast"""
+    """Display final score screen with enhanced contrast"""
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        # FIXED: Using enhanced CSS classes for better contrast
         st.markdown(f"""
         <div class="final-score-card">
             <div class="final-score-title">🎮 Game Complete!</div>
