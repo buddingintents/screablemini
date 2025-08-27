@@ -121,15 +121,13 @@ def initialize_game():
     """Initialize game state"""
     if 'game_initialized' not in st.session_state:
         st.session_state.game_initialized = True
+        st.session_state.game_state = 'welcome'  # FIXED: Use single state variable
         st.session_state.current_round = 1
         st.session_state.score = 0
         st.session_state.current_word = ''
         st.session_state.scrambled_word = ''
         st.session_state.round_start_time = None
         st.session_state.hint_used = False
-        st.session_state.game_active = False
-        st.session_state.game_complete = False
-        st.session_state.show_interstitial = False
         st.session_state.feedback_message = ''
         st.session_state.feedback_type = 'info'
         st.session_state.awaiting_next_round = False
@@ -141,11 +139,10 @@ def start_new_round():
     st.session_state.scrambled_word = scramble_word(word)
     st.session_state.round_start_time = time.time()
     st.session_state.hint_used = False
-    st.session_state.game_active = True
-    st.session_state.show_interstitial = False
     st.session_state.feedback_message = ''
     st.session_state.feedback_type = 'info'
     st.session_state.awaiting_next_round = False
+    st.session_state.game_state = 'playing'  # FIXED: Direct transition to playing
 
 def calculate_score(time_taken):
     """Calculate score based on correctness and time"""
@@ -226,14 +223,14 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # Game state routing
-    if not st.session_state.game_active and not st.session_state.game_complete:
+    # FIXED: Simplified state routing with single state variable
+    if st.session_state.game_state == 'welcome':
         show_welcome_screen()
-    elif st.session_state.show_interstitial:
+    elif st.session_state.game_state == 'interstitial':
         show_interstitial_screen()
-    elif st.session_state.game_active:
+    elif st.session_state.game_state == 'playing':
         show_game_screen()
-    elif st.session_state.game_complete:
+    elif st.session_state.game_state == 'complete':
         show_final_screen()
 
     # Footer advertisement
@@ -278,14 +275,13 @@ def show_interstitial_screen():
 
     if st.button("Continue to Next Round", type="primary", use_container_width=True):
         if st.session_state.current_round <= GAME_CONFIG['rounds_per_game']:
-            start_new_round()
+            start_new_round()  # FIXED: Direct to next round, no intermediate state
         else:
-            st.session_state.game_active = False
-            st.session_state.game_complete = True
+            st.session_state.game_state = 'complete'
         st.rerun()
 
 def show_game_screen():
-    """Display main game screen - FIXED FORM SUBMISSION"""
+    """Display main game screen"""
     # Game stats
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -325,9 +321,8 @@ def show_game_screen():
         else:
             st.info(st.session_state.feedback_message)
 
-    # FIXED: Simplified form handling without dynamic keys
+    # User input form
     if not st.session_state.awaiting_next_round:
-        # User input form - FIXED: Static form key
         with st.form(key="guess_form", clear_on_submit=True):
             user_guess = st.text_input(
                 "Your guess:", 
@@ -341,7 +336,6 @@ def show_game_screen():
             with col2:
                 skip_round = st.form_submit_button("Skip Round", use_container_width=True)
 
-        # Process form submission - FIXED: Immediate processing
         if submit_guess:
             if user_guess.strip():
                 process_guess(user_guess.strip().upper())
@@ -356,7 +350,7 @@ def show_game_screen():
             next_round()
 
 def process_guess(user_guess):
-    """Process user's guess - FIXED: Simplified state management"""
+    """Process user's guess"""
     current_word = st.session_state.current_word
 
     if user_guess == current_word:
@@ -374,23 +368,20 @@ def process_guess(user_guess):
         st.session_state.feedback_type = 'error'
         st.session_state.awaiting_next_round = False
 
-    # Force immediate rerun to show feedback
     st.rerun()
 
 def next_round():
-    """Move to next round or end game"""
+    """Move to next round or end game - FIXED: Direct state transitions"""
     st.session_state.current_round += 1
     st.session_state.feedback_message = ''
     st.session_state.awaiting_next_round = False
 
     if st.session_state.current_round <= GAME_CONFIG['rounds_per_game']:
-        # Show interstitial ad between rounds
-        st.session_state.show_interstitial = True
-        st.session_state.game_active = False
+        # FIXED: Go directly to interstitial, don't change game_active
+        st.session_state.game_state = 'interstitial'
     else:
         # End game
-        st.session_state.game_active = False
-        st.session_state.game_complete = True
+        st.session_state.game_state = 'complete'
 
     st.rerun()
 
@@ -422,8 +413,7 @@ def show_final_screen():
 
         with col_b:
             if st.button("🏠 Main Menu", use_container_width=True):
-                st.session_state.game_complete = False
-                st.session_state.game_active = False
+                st.session_state.game_state = 'welcome'
                 st.rerun()
 
 def get_performance_message(score):
